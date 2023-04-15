@@ -1,7 +1,6 @@
 package com.example.fileshareproject;
 
 
-
 import java.io.*;
 import java.net.*;
 import java.util.*;
@@ -74,12 +73,12 @@ public class Server {
                         int totalRead = 0;
                         long remaining = fileSize;
 
-//                        FileOutputStream fos = new FileOutputStream("Received\\" + filename);
+                        //FileOutputStream fos = new FileOutputStream("Received\\" + filename);
                         // extract file extension
                         String fileExtension = filename.substring(filename.lastIndexOf("."));
                         // create output file name with original file extension
                         String filenameWithoutExtension = filename.substring(0, filename.lastIndexOf('.'));
-                        FileOutputStream fos = new FileOutputStream("Received\\" + filenameWithoutExtension + fileExtension);
+                        FileOutputStream fos = new FileOutputStream("serverData\\" + filenameWithoutExtension + fileExtension);
 
                         BufferedOutputStream bos = new BufferedOutputStream(fos);
 
@@ -96,6 +95,41 @@ public class Server {
                         System.out.println("File received: " + filename);
                         sendToAllClients("File received: " + filename);
                     }
+
+                    if (type.equals("download")) {
+                        String filename = arr[1];
+//                        FileOutputStream fos = new FileOutputStream("received/" + filename);
+
+                        long fileSize = Long.parseLong(arr[2]);
+
+                        byte[] buffer = new byte[4096];
+                        int read = 0;
+                        int totalRead = 0;
+                        long remaining = fileSize;
+
+                        //FileOutputStream fos = new FileOutputStream("Received\\" + filename);
+                        // extract file extension
+                        String fileExtension = filename.substring(filename.lastIndexOf("."));
+                        // create output file name with original file extension
+                        String filenameWithoutExtension = filename.substring(0, filename.lastIndexOf('.'));
+                        FileOutputStream fos = new FileOutputStream("clientData\\" + filenameWithoutExtension + fileExtension);
+
+                        BufferedOutputStream bos = new BufferedOutputStream(fos);
+
+                        while ((read = dis.read(buffer, 0, (int) Math.min(buffer.length, remaining))) > 0) {
+                            totalRead += read;
+                            remaining -= read;
+                            bos.write(buffer, 0, read);
+                        }
+
+                        bos.flush();
+                        bos.close();
+                        fos.close();
+
+                        System.out.println("File downloaded: " + filename);
+                        sendToAllClients("File downloaded: " + filename);
+                    }
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

@@ -1,18 +1,22 @@
 package com.example.fileshareproject;
 
-
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
-
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -27,6 +31,9 @@ public class Client extends Application {
     private Button chooseFileButton;
     private Label chosenFileLabel;
     private File chosenFile;
+    private TableView<File> tableView;
+    private Button chooseDirectoryButton;
+    private File directory;
 
 
     public static void main(String[] args) {
@@ -41,11 +48,95 @@ public class Client extends Application {
         primaryStage.setScene(scene);
         primaryStage.show();
 
-        // Create the chat log area
-        chatLog = new TextArea();
-        chatLog.setEditable(false);
-        chatLog.setWrapText(true);
-        root.setCenter(chatLog);
+        // Create tableview Area
+        tableView = new TableView<File>();
+        tableView.setPrefWidth(500);
+        TableColumn<File, String> nameColumn = new TableColumn<File, String>("Name");
+        nameColumn.setPrefWidth(400);
+        nameColumn.setCellValueFactory(file -> new SimpleObjectProperty<>(file.getValue().getName()));
+        TableColumn<File, String> sizeColumn = new TableColumn<File, String>("Size");
+        sizeColumn.setCellValueFactory(file -> new SimpleObjectProperty<>(String.format("%.2f KB", file.getValue().length() / 1024.0)));
+        TableColumn<File, Void> actionColumn = new TableColumn<File, Void>("Download");
+        actionColumn.setCellFactory(column -> {
+            return new TableCell<File, Void>() {
+                private final Button downloadButton = new Button("Download");
+                {
+                    downloadButton.setOnAction(new EventHandler<ActionEvent>() {
+                        @Override
+                        public void handle(ActionEvent event) {
+                            File chosenFile = getTableView().getItems().get(getIndex());
+                            if (chosenFile != null) {
+                                try {
+                                    long fileSize = chosenFile.length();
+                                    dos.writeUTF("download#" + chosenFile.getName() + "#" + fileSize);
+
+                                    FileInputStream fis = new FileInputStream(chosenFile);
+                                    BufferedInputStream bis = new BufferedInputStream(fis);
+                                    byte[] buffer = new byte[4096];
+                                    int bytesRead;
+                                    while ((bytesRead =
+
+                                            bis.read(buffer)) > 0) {
+                                        dos.write(buffer, 0, bytesRead);
+                                    }
+                                    bis.close();
+                                    fis.close();
+                                    //sendStatusLabel.setText("File downloaded successfully!");
+                                    System.out.println(chosenFile.getName()+" -- File downloaded successfully");
+                                } catch (IOException e) {
+                                    //showAlert("Error", "Could not download file: " + e.getMessage());
+                                    System.out.println(e+"could not download file");
+                                }
+                            } else {
+                                //showAlert("Error", "Please choose a file to download.");
+                                System.out.println("Please choose a file to download.");
+                            }
+                        }
+                    });
+                }
+                @Override
+                protected void updateItem(Void item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty) {
+                        setGraphic(null);
+                    } else {
+                        setGraphic(downloadButton);
+                    }
+                }
+            };
+        });
+
+        //tableView elements
+        tableView.getColumns().addAll(nameColumn, sizeColumn, actionColumn);
+        root.setCenter(tableView);
+
+        //reading files from server directory
+        chooseDirectoryButton = new Button("view server files");
+        chooseDirectoryButton.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                File directory  = new File("serverData");
+                DirectoryChooser directoryChooser = new DirectoryChooser();
+                directoryChooser.setTitle("Choose directory");
+                //directory = directoryChooser.showDialog(primaryStage);
+                directoryChooser.setInitialDirectory(directory);
+                if (directory != null) {
+                    List<File> files = new ArrayList<File>();
+                    for (File file : directory.listFiles()) {
+                        if (file.isFile()) {
+                            files.add(file);
+                        }
+                    }
+                    ObservableList<File> fileList = FXCollections.observableArrayList(files);
+                    tableView.setItems(fileList);
+                }
+            }
+        });
+        HBox hbox = new HBox(10, chooseDirectoryButton);
+        root.setTop(hbox);
+
+
+
 
         // Create the file chooser controls
         sendFileButton = new Button("Send File");
@@ -174,7 +265,7 @@ public class Client extends Application {
                         }
                         bos.close();
                         fos.close();
-                        chatLog.appendText("File received: " + filename + "\n");
+                        //chatLog.appendText("File received: " + filename + "\n");
                     } else if (message.equals("logout")) {
                         showAlert("Logout", "You have been logged out by the server.");
                         socket.close();
@@ -190,3 +281,4 @@ public class Client extends Application {
 
     }
 }
+
